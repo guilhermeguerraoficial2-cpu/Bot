@@ -1,15 +1,17 @@
 {
   "name": "surto-bot",
   "version": "1.0.0",
-  "description": "Bot de WhatsApp para o jogo Surto: A Cidade Infectada",
+  "description": "Bot WhatsApp - Surto: A Cidade Infectada (jogo de dedução social)",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node tests.js"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.6.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "uuid": "^9.0.0"
   },
-  "author": "",
+  "author": "Seu Nome",
   "license": "MIT"
 }
