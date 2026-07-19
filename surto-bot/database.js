@@ -1,88 +1,54 @@
-// database.js - Gerenciamento dos arquivos JSON (pode ser migrado para Supabase)
+const fs = require('fs');
 const path = require('path');
-const { readJSON, writeJSON, ensureDir } = require('./utils');
-const config = require('./config');
 
-// Caminhos base
-const DATA_DIR = config.dataPath;
-ensureDir(DATA_DIR);
+const DATA_DIR = path.join(__dirname, 'data');
 
-const PLAYERS_FILE = path.join(DATA_DIR, 'players.json');
-const MATCHES_FILE = path.join(DATA_DIR, 'matches.json');
-const RANKING_FILE = path.join(DATA_DIR, 'ranking.json');
-const STATISTICS_FILE = path.join(DATA_DIR, 'statistics.json');
+// Garante que o diretório data existe
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
-// Estrutura padrão dos dados
-const defaultData = {
-    players: {},   // { phoneNumber: { name, wins, losses, gamesPlayed, ... } }
-    matches: [],   // lista de partidas ativas/finalizadas
-    ranking: [],   // array ordenado por vitórias
-    statistics: {
-        totalGames: 0,
-        zombieWins: 0,
-        humanWins: 0,
-        totalShots: 0,
-        accurateShots: 0
+// Arquivos JSON
+const FILES = {
+  players: path.join(DATA_DIR, 'players.json'),
+  matches: path.join(DATA_DIR, 'matches.json'),
+  ranking: path.join(DATA_DIR, 'ranking.json'),
+  statistics: path.join(DATA_DIR, 'statistics.json'),
+};
+
+// Carrega dados de um arquivo JSON (retorna array/objeto vazio se não existir)
+function load(fileKey) {
+  try {
+    if (fs.existsSync(FILES[fileKey])) {
+      const raw = fs.readFileSync(FILES[fileKey], 'utf-8');
+      return JSON.parse(raw);
     }
+  } catch (err) {
+    console.error(`Erro ao carregar ${fileKey}:`, err);
+  }
+  // Retorna array vazio para listas, objeto vazio para estatísticas
+  return fileKey === 'statistics' ? {} : [];
+}
+
+// Salva dados em um arquivo JSON de forma síncrona (seguro para pequenas cargas)
+function save(fileKey, data) {
+  try {
+    fs.writeFileSync(FILES[fileKey], JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error(`Erro ao salvar ${fileKey}:`, err);
+  }
+}
+
+// Abstração para migração futura
+const database = {
+  getPlayers: () => load('players'),
+  savePlayers: (data) => save('players', data),
+  getMatches: () => load('matches'),
+  saveMatches: (data) => save('matches', data),
+  getRanking: () => load('ranking'),
+  saveRanking: (data) => save('ranking', data),
+  getStatistics: () => load('statistics'),
+  saveStatistics: (data) => save('statistics', data),
 };
 
-/**
- * Carrega todos os dados do disco
- */
-function loadAll() {
-    return {
-        players: readJSON(PLAYERS_FILE) || defaultData.players,
-        matches: readJSON(MATCHES_FILE) || defaultData.matches,
-        ranking: readJSON(RANKING_FILE) || defaultData.ranking,
-        statistics: readJSON(STATISTICS_FILE) || defaultData.statistics
-    };
-}
-
-/**
- * Salva jogadores
- */
-function savePlayers(players) {
-    return writeJSON(PLAYERS_FILE, players);
-}
-
-/**
- * Salva partidas
- */
-function saveMatches(matches) {
-    return writeJSON(MATCHES_FILE, matches);
-}
-
-/**
- * Salva ranking
- */
-function saveRanking(ranking) {
-    return writeJSON(RANKING_FILE, ranking);
-}
-
-/**
- * Salva estatísticas
- */
-function saveStatistics(stats) {
-    return writeJSON(STATISTICS_FILE, stats);
-}
-
-/**
- * Atualiza ranking com base nos jogadores
- */
-function updateRanking(players) {
-    const ranking = Object.values(players)
-        .filter(p => p.gamesPlayed > 0)
-        .sort((a, b) => b.wins - a.wins || b.gamesPlayed - a.gamesPlayed)
-        .slice(0, 100); // top 100
-    saveRanking(ranking);
-    return ranking;
-}
-
-module.exports = {
-    loadAll,
-    savePlayers,
-    saveMatches,
-    saveRanking,
-    saveStatistics,
-    updateRanking
-};
+module.exports = database;
