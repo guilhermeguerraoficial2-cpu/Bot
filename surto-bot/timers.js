@@ -1,65 +1,42 @@
-// timers.js - Gerenciamento de temporizadores das fases do jogo
 const config = require('./config');
 const { formatTime } = require('./utils');
-const { phaseAnnouncement } = require('./messages');
+const messages = require('./messages');
 
-// Armazena temporizadores ativos por partida (matchId -> { phase, timer, interval })
-const activeTimers = {};
+// Armazena temporizadores ativos por grupo
+const activeTimers = new Map();
 
-/**
- * Inicia a contagem regressiva de uma fase
- * @param {string} matchId - ID da partida
- * @param {string} phase - 'discussion', 'voting', 'night' ou 'reVoting'
- * @param {function} onTick - callback a cada segundo (timeLeft, formatted)
- * @param {function} onEnd - callback quando o tempo acabar
- */
-function startPhaseTimer(matchId, phase, groupId, sock, onEnd) {
-    // Cancela timer anterior se existir
-    clearPhaseTimer(matchId);
+// Função para exibir contagem regressiva e executar callback ao final
+function startPhaseTimer(groupId, phase, durationMs, onTick, onEnd) {
+  // Cancela timer anterior
+  if (activeTimers.has(groupId)) {
+    clearInterval(activeTimers.get(groupId).interval);
+  }
 
-    const duration = config.timers[phase] || 60;
-    let timeLeft = duration;
-
-    // Envia anúncio inicial
-    sock.sendMessage(groupId, { text: phaseAnnouncement(phase, formatTime(timeLeft)) });
-
-    const interval = setInterval(() => {
-        timeLeft--;
-        if (timeLeft <= 0) {
-            clearInterval(interval);
-            delete activeTimers[matchId];
-            sock.sendMessage(groupId, { text: `⏰ Tempo esgotado!` });
-            if (onEnd) onEnd();
-        } else {
-            // Atualiza a cada 10 segundos para evitar spam
-            if (timeLeft % 10 === 0 || timeLeft <= 5) {
-                sock.sendMessage(groupId, { text: phaseAnnouncement(phase, formatTime(timeLeft)) });
-            }
-        }
-    }, 1000);
-
-    activeTimers[matchId] = { phase, timer: interval };
-}
-
-/**
- * Cancela o temporizador de uma partida
- */
-function clearPhaseTimer(matchId) {
-    if (activeTimers[matchId]) {
-        clearInterval(activeTimers[matchId].timer);
-        delete activeTimers[matchId];
+  let remaining = durationMs;
+  const interval = setInterval(() => {
+    remaining -= 10000; // a cada 10 segundos
+    if (remaining <= 0) {
+      clearInterval(interval);
+      activeTimers.delete(groupId);
+      if (onEnd) onEnd();
+    } else {
+      const timeStr = formatTime(remaining);
+      if (onTick) onTick(timeStr);
     }
+  }, 10000);
+
+  activeTimers.set(groupId, { interval, phase });
 }
 
-/**
- * Verifica se existe temporizador ativo para a partida
- */
-function hasActiveTimer(matchId) {
-    return !!activeTimers[matchId];
+// Cancela temporizador de um grupo
+function cancelTimer(groupId) {
+  if (activeTimers.has(groupId)) {
+    clearInterval(activeTimers.get(groupId).interval);
+    activeTimers.delete(groupId);
+  }
 }
 
 module.exports = {
-    startPhaseTimer,
-    clearPhaseTimer,
-    hasActiveTimer
+  startPhaseTimer,
+  cancelTimer,
 };
