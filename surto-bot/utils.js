@@ -1,86 +1,49 @@
-// utils.js - Funções utilitárias reutilizáveis
-const fs = require('fs');
-const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
-/**
- * Embaralha um array (Fisher-Yates)
- */
-function shuffle(array) {
-    const arr = [...array];
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+// Gera ID único
+function generateId() {
+  return uuidv4();
 }
 
-/**
- * Retorna um número inteiro aleatório entre min e max (inclusivo)
- */
-function randomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+// Embaralha array (Fisher-Yates) usando crypto para segurança
+function shuffleArray(arr) {
+  const array = [...arr];
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
 }
 
-/**
- * Aguarda X milissegundos (Promise)
- */
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+// Escolhe item aleatório de um array
+function randomPick(arr) {
+  return arr[crypto.randomInt(0, arr.length)];
 }
 
-/**
- * Formata segundos para mm:ss
- */
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+// Filtra objetos por propriedade
+function findByProp(arr, prop, value) {
+  return arr.find(item => item[prop] === value);
 }
 
-/**
- * Garante que um diretório exista
- */
-function ensureDir(dir) {
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
+// Formata tempo (ms) para string legível
+function formatTime(ms) {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 
-/**
- * Lê um arquivo JSON, retorna objeto ou array vazio se não existir
- */
-function readJSON(filePath) {
-    try {
-        if (fs.existsSync(filePath)) {
-            const data = fs.readFileSync(filePath, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (err) {
-        console.error(`Erro ao ler ${filePath}:`, err.message);
-    }
-    return null;
-}
-
-/**
- * Escreve um objeto em arquivo JSON (cria diretórios se necessário)
- */
-function writeJSON(filePath, data) {
-    try {
-        ensureDir(path.dirname(filePath));
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-        return true;
-    } catch (err) {
-        console.error(`Erro ao salvar ${filePath}:`, err.message);
-        return false;
-    }
+// Verifica se é número de WhatsApp no formato JID
+function isJid(str) {
+  return str?.includes('@s.whatsapp.net') || str?.includes('@g.us');
 }
 
 module.exports = {
-    shuffle,
-    randomInt,
-    sleep,
-    formatTime,
-    ensureDir,
-    readJSON,
-    writeJSON
+  generateId,
+  shuffleArray,
+  randomPick,
+  findByProp,
+  formatTime,
+  isJid,
 };
